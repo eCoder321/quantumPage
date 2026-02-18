@@ -5,6 +5,7 @@ import { INITIAL_STATE, applyGateWithDetails, getBlochCoordinates, formatComplex
 import BlochSphere from './components/BlochSphere';
 import GateControls from './components/GateControls';
 import CalculationPanel from './components/CalculationPanel';
+import AIChatPanel from './components/AIChatPanel';
 import { Activity, History, Settings2, Sparkles, BookOpen } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -186,12 +187,14 @@ const App: React.FC = () => {
         </div>
 
         {/* 3D Visualization */}
-        <div className="flex-1 p-8 pt-64 pb-24">
+        <div className="flex-1 p-8 pt-64 pb-24 relative">
           <BlochSphere coords={coords} />
         </div>
 
         {/* Calculation Details Overlay */}
-        <CalculationPanel details={lastCalc} />
+        <div className="relative z-30 flex justify-center w-full">
+           <CalculationPanel details={lastCalc} />
+        </div>
 
         {/* Background Decorations */}
         <div className="absolute inset-0 pointer-events-none opacity-30">
@@ -199,6 +202,9 @@ const App: React.FC = () => {
           <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-500/20 blur-[100px] rounded-full" />
         </div>
       </div>
+
+      {/* AI Chat Panel - Right Side */}
+      <AIChatPanel state={state} history={history} coords={coords} />
     </div>
   );
 };
