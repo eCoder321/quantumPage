@@ -1,5 +1,5 @@
 
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, Sphere, Line } from '@react-three/drei';
 import * as THREE from 'three';
@@ -11,26 +11,53 @@ interface BlochSphereProps {
 
 const StateVector: React.FC<{ targetPos: THREE.Vector3 }> = ({ targetPos }) => {
   const meshRef = useRef<THREE.Group>(null);
-  const currentPos = useRef(new THREE.Vector3(1, 0, 0)); // Start at +x (mapped)
+  const shaftMatRef = useRef<THREE.MeshStandardMaterial>(null);
+  const headMatRef = useRef<THREE.MeshStandardMaterial>(null);
+  const currentPos = useRef(new THREE.Vector3(0, 1, 0)); 
+  const lastTarget = useRef(new THREE.Vector3());
 
-  useFrame(() => {
+  useEffect(() => {
+    if (!targetPos.equals(lastTarget.current)) {
+      lastTarget.current.copy(targetPos);
+    }
+  }, [targetPos]);
+
+  useFrame((state, delta) => {
     if (meshRef.current) {
-      // Smoothly interpolate position for animation
-      // We lerp and then normalize to ensure the vector always stays on the surface of the sphere
-      // This makes the transition look like a path along the surface
-      currentPos.current.lerp(targetPos, 0.1);
+      // Snappier lerp (0.22)
+      currentPos.current.lerp(targetPos, 0.22);
       
-      // If the vector is near the center (during a polar flip), we nudge it slightly 
-      // to ensure the normalization doesn't cause a jump
-      if (currentPos.current.length() < 0.1) {
-        currentPos.current.add(new THREE.Vector3(0.01, 0, 0));
+      if (currentPos.current.length() < 0.01) {
+        currentPos.current.set(0, 0.01, 0);
       }
       
       currentPos.current.normalize();
       
-      meshRef.current.lookAt(currentPos.current);
-      // Scale it to length 1
-      meshRef.current.scale.set(1, 1, 1);
+      // Look at the tip of the vector
+      const lookTarget = currentPos.current.clone();
+      meshRef.current.lookAt(lookTarget);
+
+      // Glow logic: Intensify emissive color while moving
+      const dist = currentPos.current.distanceTo(targetPos);
+      const isMoving = dist > 0.005;
+      
+      const targetShaftIntensity = isMoving ? 4.0 : 0.8;
+      const targetHeadIntensity = isMoving ? 6.0 : 1.5;
+
+      if (shaftMatRef.current) {
+        shaftMatRef.current.emissiveIntensity = THREE.MathUtils.lerp(
+          shaftMatRef.current.emissiveIntensity, 
+          targetShaftIntensity, 
+          0.1
+        );
+      }
+      if (headMatRef.current) {
+        headMatRef.current.emissiveIntensity = THREE.MathUtils.lerp(
+          headMatRef.current.emissiveIntensity, 
+          targetHeadIntensity, 
+          0.1
+        );
+      }
     }
   });
 
@@ -39,81 +66,110 @@ const StateVector: React.FC<{ targetPos: THREE.Vector3 }> = ({ targetPos }) => {
       {/* Arrow Shaft */}
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.5]}>
         <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} />
+        <meshStandardMaterial 
+          ref={shaftMatRef}
+          color="#38bdf8" 
+          emissive="#38bdf8" 
+          emissiveIntensity={0.8} 
+          toneMapped={false}
+        />
       </mesh>
       {/* Arrow Head */}
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 1]}>
         <coneGeometry args={[0.06, 0.15, 12]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={1} />
+        <meshStandardMaterial 
+          ref={headMatRef}
+          color="#38bdf8" 
+          emissive="#38bdf8" 
+          emissiveIntensity={1.5} 
+          toneMapped={false}
+        />
       </mesh>
     </group>
   );
 };
 
 const BlochSphereScene: React.FC<BlochSphereProps> = ({ coords }) => {
-  // THREE.js Y is up, but Bloch sphere Z is up. 
-  // We'll map Bloch (x, y, z) to Three (x, z, -y)
+  // Map Bloch (x, y, z) to Three (x, z, -y)
   const targetPos = useMemo(() => new THREE.Vector3(coords.x, coords.z, -coords.y), [coords]);
 
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} intensity={1} />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} />
+      <ambientLight intensity={0.8} />
+      <pointLight position={[10, 10, 10]} intensity={2} />
+      <pointLight position={[-10, -10, -10]} intensity={1} />
 
-      {/* The Sphere Shell */}
+      {/* Sphere Shell - increased opacity for visibility */}
       <Sphere args={[1, 64, 64]}>
         <meshPhongMaterial 
-          color="#1e293b" 
+          color="#334155" 
           transparent 
-          opacity={0.15} 
-          shininess={100}
+          opacity={0.25} 
+          shininess={50}
+          side={THREE.DoubleSide}
         />
       </Sphere>
       
-      {/* Grid/Wireframe for depth */}
-      <Sphere args={[1, 32, 32]}>
-        <meshBasicMaterial color="#475569" wireframe transparent opacity={0.1} />
+      {/* Grid */}
+      <Sphere args={[1.01, 32, 32]}>
+        <meshBasicMaterial color="#475569" wireframe transparent opacity={0.15} />
       </Sphere>
 
-      {/* Axes - Corrected mapping for standard visualization where Z is up */}
-      {/* Z Axis - Vertical (mapped to Three.js Y) */}
-      <Line points={[[0, -1.2, 0], [0, 1.2, 0]]} color="#94a3b8" lineWidth={1} transparent opacity={0.5} />
-      <Text position={[0, 1.35, 0]} fontSize={0.12} color="#f8fafc">|0⟩ (+z)</Text>
-      <Text position={[0, -1.35, 0]} fontSize={0.12} color="#f8fafc">|1⟩ (-z)</Text>
+      {/* Z Axis */}
+      <Line points={[[0, -1.2, 0], [0, 1.2, 0]]} color="#94a3b8" lineWidth={2} transparent opacity={0.6} />
+      <Text position={[0, 1.4, 0]} fontSize={0.15} color="white">|0⟩</Text>
+      <Text position={[0, -1.4, 0]} fontSize={0.15} color="white">|1⟩</Text>
 
-      {/* X Axis (mapped to Three.js X) */}
-      <Line points={[[-1.2, 0, 0], [1.2, 0, 0]]} color="#94a3b8" lineWidth={1} transparent opacity={0.5} />
-      <Text position={[1.35, 0, 0]} fontSize={0.1} color="#f8fafc">+x</Text>
-      <Text position={[1.0, 0.15, 0]} fontSize={0.08} color="#94a3b8">|+⟩</Text>
+      {/* X Axis */}
+      <Line points={[[-1.2, 0, 0], [1.2, 0, 0]]} color="#ef4444" lineWidth={1} transparent opacity={0.4} />
+      <Text position={[1.4, 0, 0]} fontSize={0.12} color="#f8fafc">X</Text>
 
-      {/* Y Axis (mapped to Three.js -Z) */}
-      <Line points={[[0, 0, -1.2], [0, 0, 1.2]]} color="#94a3b8" lineWidth={1} transparent opacity={0.5} />
-      <Text position={[0, 0, -1.35]} fontSize={0.1} color="#f8fafc">+y</Text>
-      <Text position={[0, 0.15, -1.0]} fontSize={0.08} color="#94a3b8">|i+⟩</Text>
+      {/* Y Axis */}
+      <Line points={[[0, 0, -1.2], [0, 0, 1.2]]} color="#10b981" lineWidth={1} transparent opacity={0.4} />
+      <Text position={[0, 0, -1.4]} fontSize={0.12} color="#f8fafc">Y</Text>
 
-      {/* Equatorial Circle */}
+      {/* Equatorial Ring */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.99, 1.01, 64]} />
-        <meshBasicMaterial color="#334155" transparent opacity={0.3} side={THREE.DoubleSide} />
+        <ringGeometry args={[0.995, 1.005, 64]} />
+        <meshBasicMaterial color="#64748b" transparent opacity={0.4} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* The State Vector */}
       <StateVector targetPos={targetPos} />
 
-      <OrbitControls enablePan={false} minDistance={2} maxDistance={6} />
+      <OrbitControls 
+        enablePan={false} 
+        minDistance={2} 
+        maxDistance={6} 
+        makeDefault 
+        rotateSpeed={0.8}
+      />
     </>
   );
 };
 
 const BlochSphere: React.FC<BlochSphereProps> = ({ coords }) => {
   return (
-    <div className="w-full h-full relative cursor-move bg-slate-900/50 rounded-2xl overflow-hidden border border-slate-700/50 shadow-2xl">
-      <Canvas camera={{ position: [2.5, 1.5, 2.5], fov: 45 }}>
+    <div className="w-full h-full min-h-[400px] relative bg-[#020617] overflow-hidden">
+      <Canvas 
+        camera={{ position: [3, 2, 3], fov: 40 }}
+        gl={{ antialias: true, alpha: true }}
+      >
         <BlochSphereScene coords={coords} />
       </Canvas>
-      <div className="absolute top-4 left-4 pointer-events-none select-none">
-        <h2 className="text-slate-400 text-xs font-bold uppercase tracking-widest">Bloch Sphere Visualization</h2>
+      
+      {/* Visual Labels */}
+      <div className="absolute top-6 left-6 pointer-events-none select-none">
+        <div className="flex items-center gap-2 mb-1">
+           <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+           <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">3D Qubit Geometry</span>
+        </div>
+        <h2 className="text-white text-lg font-bold">Bloch Sphere</h2>
+      </div>
+
+      <div className="absolute bottom-6 right-6 pointer-events-none">
+        <div className="bg-slate-900/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800/50 text-[10px] text-slate-500 font-medium">
+          Drag to orbit • Scroll to zoom
+        </div>
       </div>
     </div>
   );

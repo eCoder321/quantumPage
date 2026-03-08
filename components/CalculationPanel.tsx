@@ -38,7 +38,7 @@ const CalculationPanel: React.FC<CalculationPanelProps> = ({ details }) => {
   const step2_b = multiply(g11, b);
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-30 transition-all duration-500">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-50 transition-all duration-500 pointer-events-auto">
       <div className={`bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[600px]' : 'max-h-16'}`}>
         
         {/* Header Toggle */}
@@ -74,7 +74,7 @@ const CalculationPanel: React.FC<CalculationPanelProps> = ({ details }) => {
                   <Binary size={14} /> Matrix Multiplication Step
                 </h4>
                 
-                <div className="flex items-center justify-center gap-4 bg-slate-950/50 p-6 rounded-2xl border border-slate-800 math-font overflow-x-auto">
+                <div className="flex items-center justify-start gap-4 bg-slate-950/50 p-6 rounded-2xl border border-slate-800 math-font overflow-x-auto">
                   {/* Gate Matrix */}
                   <div className="flex items-center">
                     <span className="text-2xl mr-1">[</span>
