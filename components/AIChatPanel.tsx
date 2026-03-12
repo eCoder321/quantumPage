@@ -48,40 +48,39 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => 
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
-      const context = `
-        CURRENT QUBIT STATE:
-        - alpha (amplitude of |0>): ${formatComplex(state.alpha)}
-        - beta (amplitude of |1>): ${formatComplex(state.beta)}
-        - Bloch Sphere Coordinates: X=${coords.x.toFixed(3)}, Y=${coords.y.toFixed(3)}, Z=${coords.z.toFixed(3)}
-        - Last Gate Applied: ${lastGate}
-        - History Path: ${history.map(h => h.gate).reverse().join(' -> ')}
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite-preview',
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `CONTEXT:\n${context}\n\nUSER QUESTION: ${text}` }]
-          }
-        ],
-        config: {
-          systemInstruction: `You are a world-class Quantum Computing expert. 
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: `
+          CONTEXT:
+          CURRENT QUBIT STATE:
+          - alpha (amplitude of |0>): ${formatComplex(state.alpha)}
+          - beta (amplitude of |1>): ${formatComplex(state.beta)}
+          - Bloch Sphere Coordinates: X=${coords.x.toFixed(3)}, Y=${coords.y.toFixed(3)}, Z=${coords.z.toFixed(3)}
+          - Last Gate Applied: ${lastGate}
+          - History Path: ${history.map(h => h.gate).reverse().join(' -> ')}
+          
+          USER QUESTION: ${text}
+          
+          SYSTEM INSTRUCTION: You are a world-class Quantum Computing expert. 
           FORMATTING RULES:
           1. Use LaTeX for ALL mathematical symbols, states, and equations. Use single dollar signs ($) for inline math and double dollar signs ($$) for block math.
           2. ALWAYS represent the state as $|\psi\rangle = \alpha |0\rangle + \beta |1\rangle$.
           3. Use bolding and lists (Markdown) to make your explanations easy to scan.
           4. If explaining a gate, describe its geometric rotation on the Bloch sphere clearly.
           5. Keep responses concise but high-quality.
-          6. Address the user's specific context provided (the alpha/beta values and the last gate applied).`,
-          temperature: 0.7,
-        }
+          6. Address the user's specific context provided (the alpha/beta values and the last gate applied).` 
+        }),
       });
 
+      if (!response.ok) throw new Error("Failed to fetch from server");
+      
+      const data = await response.json();
       const assistantMessage: Message = { 
         role: 'assistant', 
-        content: response.text || "I'm sorry, I couldn't process that. Can you try again?" 
+        content: data.text || "I'm sorry, I couldn't process that. Can you try again?" 
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {

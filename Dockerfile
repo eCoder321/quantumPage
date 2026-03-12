@@ -4,17 +4,17 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-# Pass the API key as a build argument
-ARG VITE_GEMINI_API_KEY
-ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
 RUN npm run build
 
-# Stage 2: Serve the application with Nginx
-FROM nginx:alpine
-# Copy the custom Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Copy the built assets from the build stage
-COPY --from=build /app/dist /usr/share/nginx/html
-# Expose port 8080
-EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+# Stage 2: Serve the application with Node.js
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/server.ts ./
+RUN npm install --production
+# Install tsx to run the server
+RUN npm install tsx
+
+EXPOSE 3000
+CMD ["npx", "tsx", "server.ts"]
