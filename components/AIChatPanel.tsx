@@ -48,7 +48,7 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => 
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
       const context = `
         CURRENT QUBIT STATE:
         - alpha (amplitude of |0>): ${formatComplex(state.alpha)}
