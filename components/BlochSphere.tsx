@@ -99,42 +99,44 @@ const BlochSphereScene: React.FC<BlochSphereProps> = ({ coords }) => {
       <pointLight position={[10, 10, 10]} intensity={2} />
       <pointLight position={[-10, -10, -10]} intensity={1} />
 
-      {/* Sphere Shell - increased opacity for visibility */}
-      <Sphere args={[1, 64, 64]}>
-        <meshPhongMaterial 
-          color="#334155" 
-          transparent 
-          opacity={0.25} 
-          shininess={50}
-          side={THREE.DoubleSide}
-        />
-      </Sphere>
-      
-      {/* Grid */}
-      <Sphere args={[1.01, 32, 32]}>
-        <meshBasicMaterial color="#475569" wireframe transparent opacity={0.15} />
-      </Sphere>
+      <group position={[0, -0.4, 0]}>
+        {/* Sphere Shell - increased opacity for visibility */}
+        <Sphere args={[1, 64, 64]}>
+          <meshPhongMaterial 
+            color="#334155" 
+            transparent 
+            opacity={0.25} 
+            shininess={50}
+            side={THREE.DoubleSide}
+          />
+        </Sphere>
+        
+        {/* Grid */}
+        <Sphere args={[1.01, 32, 32]}>
+          <meshBasicMaterial color="#475569" wireframe transparent opacity={0.15} />
+        </Sphere>
 
-      {/* Z Axis */}
-      <Line points={[[0, -1.2, 0], [0, 1.2, 0]]} color="#94a3b8" lineWidth={2} transparent opacity={0.6} />
-      <Text position={[0, 1.4, 0]} fontSize={0.15} color="white">|0⟩</Text>
-      <Text position={[0, -1.4, 0]} fontSize={0.15} color="white">|1⟩</Text>
+        {/* Z Axis */}
+        <Line points={[[0, -1.2, 0], [0, 1.2, 0]]} color="#94a3b8" lineWidth={2} transparent opacity={0.6} />
+        <Text position={[0, 1.4, 0]} fontSize={0.15} color="white">|0⟩</Text>
+        <Text position={[0, -1.4, 0]} fontSize={0.15} color="white">|1⟩</Text>
 
-      {/* X Axis */}
-      <Line points={[[-1.2, 0, 0], [1.2, 0, 0]]} color="#ef4444" lineWidth={1} transparent opacity={0.4} />
-      <Text position={[1.4, 0, 0]} fontSize={0.12} color="#f8fafc">X</Text>
+        {/* X Axis */}
+        <Line points={[[-1.2, 0, 0], [1.2, 0, 0]]} color="#ef4444" lineWidth={1} transparent opacity={0.4} />
+        <Text position={[1.4, 0, 0]} fontSize={0.12} color="#f8fafc">X</Text>
 
-      {/* Y Axis */}
-      <Line points={[[0, 0, -1.2], [0, 0, 1.2]]} color="#10b981" lineWidth={1} transparent opacity={0.4} />
-      <Text position={[0, 0, -1.4]} fontSize={0.12} color="#f8fafc">Y</Text>
+        {/* Y Axis */}
+        <Line points={[[0, 0, -1.2], [0, 0, 1.2]]} color="#10b981" lineWidth={1} transparent opacity={0.4} />
+        <Text position={[0, 0, -1.4]} fontSize={0.12} color="#f8fafc">Y</Text>
 
-      {/* Equatorial Ring */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.995, 1.005, 64]} />
-        <meshBasicMaterial color="#64748b" transparent opacity={0.4} side={THREE.DoubleSide} />
-      </mesh>
+        {/* Equatorial Ring */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.995, 1.005, 64]} />
+          <meshBasicMaterial color="#64748b" transparent opacity={0.4} side={THREE.DoubleSide} />
+        </mesh>
 
-      <StateVector targetPos={targetPos} />
+        <StateVector targetPos={targetPos} />
+      </group>
 
       <OrbitControls 
         enablePan={false} 
@@ -142,6 +144,7 @@ const BlochSphereScene: React.FC<BlochSphereProps> = ({ coords }) => {
         maxDistance={6} 
         makeDefault 
         rotateSpeed={0.8}
+        target={[0, -0.4, 0]}
       />
     </>
   );
@@ -158,10 +161,10 @@ const BlochSphere: React.FC<BlochSphereProps> = ({ coords }) => {
       </Canvas>
       
       {/* Visual Labels */}
-      <div className="absolute top-6 left-6 pointer-events-none select-none">
-        <div className="flex items-center gap-2 mb-1">
-           <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+      <div className="absolute top-6 right-6 pointer-events-none select-none text-right">
+        <div className="flex items-center justify-end gap-2 mb-1">
            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">3D Qubit Geometry</span>
+           <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
         </div>
         <h2 className="text-white text-lg font-bold">Bloch Sphere</h2>
       </div>

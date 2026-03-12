@@ -25,6 +25,7 @@ export interface GateInfo {
 }
 
 export interface HistoryEntry {
+  id: string;
   gate: GateType;
   timestamp: number;
   state: QubitState;

@@ -25,7 +25,7 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => 
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: "Hello! I'm your **Quantum Guide**. I can see you've started at the $|+\\rangle$ state on the $x$-axis. Try applying a gate or ask me why the vector moves the way it does!" 
+      content: "Hello! I'm your **Quantum Guide**. I've initialized your qubit to a custom superposition state. Try applying a gate or ask me how this state is represented on the Bloch sphere!" 
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +59,7 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => 
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: [
           {
             role: 'user',

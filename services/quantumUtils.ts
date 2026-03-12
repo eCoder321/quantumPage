@@ -5,8 +5,8 @@ import { QubitState, BlochCoordinates, CalculationDetails } from '../types';
 const INV_SQRT2 = 1 / Math.sqrt(2);
 
 export const INITIAL_STATE: QubitState = {
-  alpha: complex(INV_SQRT2, 0),
-  beta: complex(INV_SQRT2, 0)
+  alpha: complex(Math.cos(0.95), 0),
+  beta: multiply(exp(complex(0, 0.9)), Math.sin(0.95)) as Complex
 };
 
 export const GATES = {
