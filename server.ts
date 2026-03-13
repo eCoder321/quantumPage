@@ -2,6 +2,7 @@ import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import path from "path";
 import { fileURLToPath } from "url";
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,8 +12,16 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+const geminiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Limit each IP to 50 requests per window
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // API route for Gemini
-app.post("/api/gemini", async (req, res) => {
+app.post("/api/gemini", geminiLimiter, async (req, res) => {
   const { prompt } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
