@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, MessageSquare, ChevronRight, ChevronLeft, User, Bot, Loader2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { Type, FunctionDeclaration } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { QubitState, HistoryEntry, BlochCoordinates } from '../types';
+import { QubitState, HistoryEntry, BlochCoordinates, GateType } from '../types';
 import { formatComplex } from '../services/quantumUtils';
 
 interface Message {
@@ -17,15 +17,16 @@ interface AIChatPanelProps {
   state: QubitState;
   history: HistoryEntry[];
   coords: BlochCoordinates;
+  onApplyGate: (gate: GateType, theta?: number) => void;
 }
 
-const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => {
+const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords, onApplyGate }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: "Hello! I'm your **Quantum Guide**. I've initialized your qubit to a custom superposition state. Try applying a gate or ask me how this state is represented on the Bloch sphere!" 
+      content: "Hello! I'm your **Quantum Guide**. I can help you understand the current state of your qubit and apply quantum gates. Try saying: *'Apply a Hadamard gate'* or *'Perform an X rotation by 0.5 radians'*!" 
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +39,27 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => 
   }, [messages, isLoading]);
 
   const lastGate = history.length > 0 ? history[0].gate : 'None';
+
+  // Define the tool for applying gates
+  const applyGateTool: FunctionDeclaration = {
+    name: "apply_gate",
+    description: "Apply a quantum gate to the current qubit state.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        gate: {
+          type: Type.STRING,
+          description: "The type of gate to apply: I, X, Y, Z, H, S, T, RX, RY, RZ, RESET.",
+          enum: ["I", "X", "Y", "Z", "H", "S", "T", "RX", "RY", "RZ", "RESET"]
+        },
+        theta: {
+          type: Type.NUMBER,
+          description: "The rotation angle in radians (required for RX, RY, RZ gates)."
+        }
+      },
+      required: ["gate"]
+    }
+  };
 
   const handleSend = async (text: string = input) => {
     if (!text.trim() || isLoading) return;
@@ -53,39 +75,72 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ state, history, coords }) => 
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: `
-          CONTEXT:
-          CURRENT QUBIT STATE:
-          - alpha (amplitude of |0>): ${formatComplex(state.alpha)}
-          - beta (amplitude of |1>): ${formatComplex(state.beta)}
-          - Bloch Sphere Coordinates: X=${coords.x.toFixed(3)}, Y=${coords.y.toFixed(3)}, Z=${coords.z.toFixed(3)}
-          - Last Gate Applied: ${lastGate}
-          - History Path: ${history.map(h => h.gate).reverse().join(' -> ')}
+        body: JSON.stringify({
+          contents: [
+            ...messages.map(m => ({ role: m.role, parts: [{ text: m.content }] })),
+            { role: 'user', parts: [{ text: `
+              CONTEXT:
+              - alpha (amplitude of |0>): ${formatComplex(state.alpha)}
+              - beta (amplitude of |1>): ${formatComplex(state.beta)}
+              - Bloch Sphere Coordinates: X=${coords.x.toFixed(3)}, Y=${coords.y.toFixed(3)}, Z=${coords.z.toFixed(3)}
+              - Last Gate Applied: ${lastGate}
+              - History Path: ${history.map(h => h.gate).reverse().join(' -> ')}
+              
+              USER INPUT: ${text}` 
+            }] }
+          ],
+          systemInstruction: `You are a world-class Quantum Computing expert (Quantum Guide).
+          You can interact with the user's qubit by calling the 'apply_gate' tool.
           
-          USER QUESTION: ${text}
+          CAPABILITIES:
+          - If the user asks to "apply" or "perform" a gate, call the 'apply_gate' tool.
+          - If the user asks for a rotation (RX/RY/RZ), ensure you provide the 'theta' argument.
+          - After calling the tool, explain the theoretical result of that gate application.
           
-          SYSTEM INSTRUCTION: You are a world-class Quantum Computing expert. 
           FORMATTING RULES:
           1. Use LaTeX for ALL mathematical symbols, states, and equations. Use single dollar signs ($) for inline math and double dollar signs ($$) for block math.
           2. ALWAYS represent the state as $|\psi\rangle = \alpha |0\rangle + \beta |1\rangle$.
           3. Use bolding and lists (Markdown) to make your explanations easy to scan.
           4. If explaining a gate, describe its geometric rotation on the Bloch sphere clearly.
-          5. Keep responses concise but high-quality.
-          6. Address the user's specific context provided (the alpha/beta values and the last gate applied).` 
-        }),
+          5. Keep responses concise but high-quality.`,
+          tools: [{ functionDeclarations: [applyGateTool] }]
+        })
       });
 
       if (!response.ok) throw new Error("Failed to fetch from server");
       
       const data = await response.json();
+
+      // Handle function calls first
+      const functionCalls = data.functionCalls;
+      let aiResponseText = data.text || "";
+
+      if (functionCalls && functionCalls.length > 0) {
+        for (const call of functionCalls) {
+          if (call.name === "apply_gate") {
+            const { gate, theta } = call.args as { gate: GateType; theta?: number };
+            onApplyGate(gate, theta);
+            
+            // Add a small confirmation to the AI's response text if it's empty
+            if (!aiResponseText) {
+              aiResponseText = `Understood. I have applied the **${gate}** gate to your qubit. ${theta !== undefined ? `(θ = ${theta.toFixed(2)} rad)` : ""}\n\nLet's look at how this changes the state...`;
+            }
+          }
+        }
+      }
+
+      if (!aiResponseText && !functionCalls) {
+        aiResponseText = "I'm sorry, I couldn't process that. Can you try again?";
+      }
+
       const assistantMessage: Message = { 
         role: 'assistant', 
-        content: data.text || "I'm sorry, I couldn't process that. Can you try again?" 
+        content: aiResponseText 
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Connection error. Please ensure you have a valid internet connection." }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong with my quantum circuits. Please check your API key or connection." }]);
     } finally {
       setIsLoading(false);
     }

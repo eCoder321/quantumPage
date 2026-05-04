@@ -22,7 +22,7 @@ const geminiLimiter = rateLimit({
 
 // API route for Gemini
 app.post("/api/gemini", geminiLimiter, async (req, res) => {
-  const { prompt } = req.body;
+  const { contents, tools, systemInstruction } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -33,9 +33,17 @@ app.post("/api/gemini", geminiLimiter, async (req, res) => {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: prompt,
+      contents: contents,
+      config: {
+        systemInstruction,
+        tools,
+      }
     });
-    res.json({ text: response.text });
+
+    res.json({ 
+      text: response.text,
+      functionCalls: response.functionCalls 
+    });
   } catch (error) {
     console.error("Gemini API error:", error);
     res.status(500).json({ error: "Failed to generate content" });

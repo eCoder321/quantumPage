@@ -221,7 +221,12 @@ const App: React.FC = () => {
         <CalculationPanel details={lastCalc} />
       </div>
 
-      <AIChatPanel state={state} history={history} coords={coords} />
+      <AIChatPanel 
+        state={state} 
+        history={history} 
+        coords={coords} 
+        onApplyGate={handleApplyGate}
+      />
     </div>
   );
 };
